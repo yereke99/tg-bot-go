@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"tg-bot-go/config"
 	"tg-bot-go/internal/handler"
 	"tg-bot-go/internal/keyboard"
 
@@ -16,12 +17,19 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
+	cfg, err := config.NewConfig()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	// Replace with your bot token
-	token := "1325617758:AAHD8tkdxsDOE2M5oAP9BW5LF71dg5KdRQo"
+	token := cfg.Token
 
 	opts := []bot.Option{
-		bot.WithCallbackQueryDataHandler("button", bot.MatchTypePrefix, callbackHandler),
-		bot.WithCallbackQueryDataHandler("chat", bot.MatchTypePrefix, callbackHandler),
+		bot.WithCallbackQueryDataHandler("chat", bot.MatchTypePrefix, chatButtonHandler),
+		bot.WithCallbackQueryDataHandler("select_", bot.MatchTypePrefix, inlineHandler),
+		bot.WithCallbackQueryDataHandler("exit", bot.MatchTypePrefix, callbackHandlerExit),
 	}
 
 	// Create bot
@@ -31,6 +39,18 @@ func main() {
 		return
 	}
 
+	chatState := handler.GetChatState()
+
+	// 1) Регистрируем хендлер для обычных сообщений (пересылка между собеседниками)
+	b.RegisterHandler(
+		bot.HandlerTypeMessageText,
+		"",
+		bot.MatchTypeContains, func(ctx context.Context, b *bot.Bot, update *models.Update) {
+			handler.HandleChat(ctx, b, update, chatState)
+		})
+
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/hello", bot.MatchTypeExact, helloHandler)
+
 	// Create user state manager
 	//userState := handler.NewUserState()
 
@@ -39,10 +59,39 @@ func main() {
 	//	handler.HandleUpdate(ctx, b, update, userState)
 	//})
 
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/hello", bot.MatchTypeExact, helloHandler)
-
 	fmt.Println("Bot is running...")
 	b.Start(ctx)
+}
+
+func inlineHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	chatState := handler.GetChatState() // Получаем глобальное состояние чата
+	userID := update.CallbackQuery.From.ID
+
+	// Извлекаем ID выбранного пользователя
+	var selectedUserID int64
+	fmt.Sscanf(update.CallbackQuery.Data, "select_%d", &selectedUserID)
+
+	if chatState.CheckPartnerToEmpty(selectedUserID) {
+		// Уведомляем пользователей что пользователь занят!
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: userID,
+			Text:   fmt.Sprintf("Собеседник сейчас занят, пожалуйста подождите: %d", selectedUserID),
+		})
+		return
+	}
+	// Устанавливаем партнёров
+	chatState.SetPartner(userID, selectedUserID)
+	chatState.SetPartner(selectedUserID, userID)
+
+	// Уведомляем пользователей
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: userID,
+		Text:   fmt.Sprintf("Вы подключены к собеседнику с ID: %d", selectedUserID),
+	})
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: selectedUserID,
+		Text:   fmt.Sprintf("Вы подключены к собеседнику с ID: %d", userID),
+	})
 }
 
 func helloHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -60,19 +109,61 @@ func helloHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	}
 }
 
-func callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func callbackHandlerExit(ctx context.Context, b *bot.Bot, update *models.Update) {
+	chatState := handler.GetChatState()
 
-	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-		CallbackQueryID: update.CallbackQuery.ID,
-		ShowAlert:       true,
-	})
-	userID := update.Message.From.ID
+	userID := update.CallbackQuery.From.ID
+	partnerID := chatState.GetUserPartner(userID)
 
-	chat := handler.NewChat()
-	chat.AddUser(userID)
+	kb := keyboard.NewKeyboard()
+	kb.AddRow(keyboard.NewInlineButton("💬 Chat", "chat"))
+
+	chatState.RemoveUser(userID)
+	if partnerID != 0 {
+		chatState.RemoveUser(partnerID)
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:      partnerID,
+			Text:        "Ваш собеседник покинул чат.",
+			ReplyMarkup: kb.Build(),
+		})
+	}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.CallbackQuery.Message.Message.Chat.ID,
-		Text:   "You selected the button: " + update.CallbackQuery.Data,
+		ChatID:      update.CallbackQuery.From.ID,
+		Text:        "Вы вышли из чата.",
+		ReplyMarkup: nil,
+	})
+}
+
+func chatButtonHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	chatState := handler.GetChatState() // Получаем глобальное состояние чата
+	userID := update.CallbackQuery.From.ID
+
+	// Добавляем пользователя в список, если его там нет
+	chatState.AddUser(userID)
+
+	// Формируем список пользователей в виде инлайн-кнопок
+	users := chatState.GetUsers()
+	kb := keyboard.NewKeyboard()
+	for _, u := range users {
+		if u != userID { // Исключаем самого пользователя
+			kb.AddRow(keyboard.NewInlineButton(fmt.Sprintf("User %d", u), fmt.Sprintf("select_%d", u)))
+		}
+	}
+
+	// Если список
+	if len(users) == 1 {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.CallbackQuery.From.ID,
+			Text:   "Нет доступных пользователей для подключения. Подождите...",
+		})
+		return
+	}
+
+	// Отправляем сообщение с инлайн-кнопками
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.CallbackQuery.From.ID,
+		Text:        "Выберите пользователя для подключения:",
+		ReplyMarkup: kb.Build(),
 	})
 }

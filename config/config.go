@@ -10,7 +10,7 @@ type Config struct {
 // NewConfig создаёт и возвращает новый экземпляр конфигурации.
 func NewConfig() (*Config, error) {
 	cfg := &Config{
-		Token:         "1325617758:AAHD8tkdxsDOE2M5oAP9BW5LF71dg5KdRQo",
+		Token:         "8159719184:AAF-uQXUxzPXFjTS0A8-HR--FkEbsIvqtRg",
 		RedisAddr:     "localhost:6379", // Локальный адрес Redis
 		RedisPassword: "",               // Без пароля (если требуется, укажите здесь пароль)
 		RedisDB:       0,                // Используем базу данных Redis с индексом 0
