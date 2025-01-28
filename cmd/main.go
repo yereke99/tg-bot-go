@@ -72,7 +72,7 @@ func inlineHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	fmt.Sscanf(update.CallbackQuery.Data, "select_%d", &selectedUserID)
 
 	if chatState.CheckPartnerToEmpty(selectedUserID) {
-		// Уведомляем пользователей что пользователь занят!
+		// Уведомляем пользователей занят!
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: userID,
 			Text:   fmt.Sprintf("Собеседник сейчас занят, пожалуйста подождите: %d", selectedUserID),
