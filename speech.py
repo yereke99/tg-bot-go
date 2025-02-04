@@ -2,7 +2,7 @@ from speechkit import SpeechSynthesis, Session
 import requests
 
 # Настройка параметров
-IAM_TOKEN = 't1.9euelZrIm8_ImMzOxpXJi47HjZzOne3rnpWayovIkZbLk8zOic2byZSVx8jl9PdSRzFD-e8TKgHO3fT3EnYuQ_nvEyoBzs3n9euelZqcm4uRjpiejYqPzZPLyJONne_8xeuelZqcm4uRjpiejYqPzZPLyJONnQ.2irZ28qhBPb15rTZIqVOnWnaf9wv78NVHRwnQNTigL7N-Fu9R9uEzKuOkal1XV8rYs2oYXS5hJ5K4gui3k74CQ'
+IAM_TOKEN = 't1.9euelZqeipqSmIuQipaNic-PlM3Miu3rnpWayovIkZbLk8zOic2byZSVx8jl8_d5OhdD-e8adWUM_d3z9zlpFEP57xp1ZQz9zef1656VmsnNnsvKjsbMms2Kyo_Nz5jO7_zF656VmsnNnsvKjsbMms2Kyo_Nz5jO.kgcbngC9mgOzMOxy0cX_Feb-lzuJz7fuUR2xGdOnKzaKGSUJES1YUzRbXvEmNlVsNZ8HlC4fnSb51KI_B1foAw'
 FOLDER_ID = 'b1gk6dof1frm98hckkch'
 
 
@@ -11,7 +11,7 @@ headers = {
     'Authorization': f'Bearer {IAM_TOKEN}'
 }
 data = {
-    'text': 'Салам Богдан! Как дела? Что делаешь дрочишь или нет?',
+    'text': 'Қайырлы күн менің есімім Амира! Мен жасанды интелектпін. Қазақша сөйлей аламын, бар болғаны маған керекті мәтінді жазсаңыз болғаны)',
     'lang': 'kk-KK',  # Казахский язык
     'voice': 'amira',  # Голос для казахского языка
     'folderId': FOLDER_ID
@@ -24,7 +24,7 @@ datas = {
     'folderId': FOLDER_ID
 }
 
-response = requests.post(url, headers=headers, data=datas)
+response = requests.post(url, headers=headers, data=data)
 if response.status_code == 200:
     with open('result.ogg', 'wb') as f:
         f.write(response.content)

@@ -33,7 +33,7 @@ func TestRedisRepository_SetAndGetUserState(t *testing.T) {
 	assert.Equal(t, expectedState, actualState, "Состояние пользователя должно совпадать")
 }
 
-func TestRedisRepository_SetAndGetUserData(t *testing.T) {
+func TestRedisRepository_SetAndGetUserDatas(t *testing.T) {
 	ctx := context.Background()
 	redisRepo := setupTestRedisRepo()
 	userID := int64(12345)
