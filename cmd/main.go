@@ -47,7 +47,8 @@ func main() {
 		"",
 		bot.MatchTypeContains, func(ctx context.Context, b *bot.Bot, update *models.Update) {
 			handler.HandleChat(ctx, b, update, chatState)
-		})
+		},
+	)
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/hello", bot.MatchTypeExact, helloHandler)
 
